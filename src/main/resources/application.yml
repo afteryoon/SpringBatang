@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: SpringBatang
+
+  datasource:
+    url: jdbc:h2:mem:testdb       # ??? ??? H2 ?????? ??
+    driver-class-name: org.h2.Driver
+    username: sa                  # ?? ??? ??
+    password: ''                  # ????? ? ?
+
+  h2:
+    console:
+      enabled: true               # H2 ?? ???
+      path: /h2-console           # H2 ?? ?? ??
+
+    ##MySQL ?? (???? ??, ??? ??? ? ?? /local)
+  #  datasource:
+  #    driver-class-name: com.mysql.cj.jdbc.Driver
+  #    url: jdbc:mysql://localhost:3306/test_db
+  #    username: test
+  #    password: 1234
+
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: update            # JPA? DB ???? ???? ??? ?? (create, update, validate, none ? ??)
+    show-sql: true                # ??? SQL ?? ??
+    properties:
+      hibernate:
+        format_sql: true          # SQL ??? ?? ?? ????? ??
+        use_sql_comments: true    # SQL ?? ?? (Optional)
+
+  sql:
+    init:
+      platform: h2
+      mode: always
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: khsso102649@gmail.com
+    password: yjuikbjezgbyosyw
+    properties:
+      mail:
+        smtp:
+          auth: true
+          required: true
+        connection timeout: 5000
+        timeout: 5000
+        write timeout: 5000
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: tempJWTKEYqweqweqweqweqweqweqweqweqweqweqwe
+  access-token:
+    expiration: 3600000  # 1?? (??? ??)
+  refresh-token:
+    expiration: 604800000  # 7? (??? ??)
+
+logging:
+  level:
+    org.hibernate.SQL: INFO    # SQL ?? ??? ??
+    org.hibernate.type.descriptor.sql: TRACE  # SQL ??? ???? ?? (Optional)
+
+server:
+  port: 8080

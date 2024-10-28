@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/signup.css}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+</head>
+<body>
+<div class="stars"></div>
+<div class="mountains"></div>
+<div class="signup-container">
+  <h2>Sign Up</h2>
+  <form id="signupForm">
+    <div class="input-group">
+      <input type="email" id="email" placeholder="Email" value="test@test.com"  required>
+      <button type="button" id="verifyEmailBtn">이메일 인증</button>
+      <div class="validation-message" id="emailMessage">Please enter a valid email address</div>
+    </div>
+    <div class="input-group verification-input" id="verificationGroup">
+      <input type="text" id="verificationCode" placeholder="Enter verification code">
+      <button type="button" id="verifyCodeBtn">Verify Code</button>
+      <div class="validation-message" id="verificationMessage"></div>
+    </div>
+    <div class="input-group">
+      <input type="text" id="nickname" placeholder="Nickname" required>
+      <button type="button" id="checkNicknameBtn">Check</button>
+      <div class="validation-message" id="nicknameMessage"></div>
+    </div>
+    <div class="input-group">
+      <input type="password" id="password" placeholder="Password" required>
+      <i class="fas fa-lock"></i>
+      <div class="validation-message" id="passwordMessage">Password must be at least 8 characters</div>
+    </div>
+    <div class="input-group">
+      <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+      <i class="fas fa-lock"></i>
+      <div class="validation-message" id="confirmPasswordMessage">Passwords do not match</div>
+    </div>
+    <button type="submit" class="signup-button">Sign Up</button>
+  </form>
+  <div class="login-link">
+    Already have an account? <a href="#">Login</a>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    // 요소 캐싱
+    const $form = $('#signupForm');
+    const $email = $('#email');
+    const $verifyEmailBtn = $('#verifyEmailBtn');
+    const $verificationGroup = $('#verificationGroup');
+    const $verificationCode = $('#verificationCode');
+    const $verifyCodeBtn = $('#verifyCodeBtn');
+    const $nickname = $('#nickname');
+    const $checkNicknameBtn = $('#checkNicknameBtn');
+    const $password = $('#password');
+    const $confirmPassword = $('#confirmPassword');
+
+    // 상태 변수
+    let isEmailVerified = false;
+    let isNicknameAvailable = false;
+    let timerInterval;
+
+    // 이메일 인증 요청
+    $verifyEmailBtn.on('click', () => {
+      if (validateEmail($email.val())) {
+        $.ajax({
+          url: '/api/auth/email-verification-send',
+          type: 'POST',
+          data: { email: $email.val() },
+          success: () => {
+            $verificationGroup.addClass('active');
+            showMessage('emailMessage', '인증 코드를 전송했습니다!', 'success');
+
+            // 입력 제한
+            $email.prop('readonly', true);
+            $verifyEmailBtn.prop('disabled', true);
+
+            // 타이머 시작
+            startTimer();
+          },
+          error: (xhr) => {
+            showMessage('emailMessage', '인증 코드 전송에 실패했습니다.', 'error');
+          }
+        });
+      } else {
+        showMessage('emailMessage', '유효한 이메일을 입력해주세요.', 'error');
+      }
+    });
+
+    // 인증 코드 확인
+    $verifyCodeBtn.on('click', () => {
+      const code = $verificationCode.val();
+
+      if (code.length === 6) {
+        $.ajax({
+          url: '/api/auth/email-verification',
+          type: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            email: $email.val(),
+            code: code
+          }),
+          success: (response) => {
+            if (response) {
+              isEmailVerified = true;
+              showMessage('verificationMessage', '이메일 인증이 완료되었습니다!', 'success');
+              $verificationCode.prop('readonly', true);
+              $verifyCodeBtn.prop('disabled', true);
+              stopTimer();
+            } else {
+              showMessage('verificationMessage', '잘못된 인증 코드입니다.', 'error');
+            }
+          },
+          error: () => {
+            showMessage('verificationMessage', '인증 확인 중 오류가 발생했습니다.', 'error');
+          }
+        });
+      } else {
+        showMessage('verificationMessage', '6자리 인증 코드를 입력해주세요.', 'error');
+      }
+    });
+
+    // 닉네임 중복 확인
+    $checkNicknameBtn.on('click', () => {
+      const nickname = $nickname.val();
+
+      if (nickname.length >= 2) {
+        $.ajax({
+          url: '/api/auth/check-nickname',
+          type: 'POST',
+          data: { nickname: nickname },
+          success: (available) => {
+            isNicknameAvailable = available;
+            showMessage('nicknameMessage',
+                    available ? '사용 가능한 닉네임입니다.' : '이미 사용 중인 닉네임입니다.',
+                    available ? 'success' : 'error');
+          },
+          error: () => {
+            showMessage('nicknameMessage', '닉네임 확인 중 오류가 발생했습니다.', 'error');
+          }
+        });
+      } else {
+        showMessage('nicknameMessage', '닉네임은 2자 이상이어야 합니다.', 'error');
+      }
+    });
+
+    // 회원가입 폼 제출
+    $form.on('submit', (e) => {
+      e.preventDefault();
+
+      if (!validateSignupForm()) {
+        return;
+      }
+
+      const userData = {
+        email: $email.val(),
+        password: $password.val(),
+        nickname: $nickname.val()
+      };
+
+      $.ajax({
+        url: '/auth/signup',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(userData),
+        success: () => {
+          alert('회원가입이 완료되었습니다!');
+          window.location.href = '/auth/login';
+        },
+        error: (xhr) => {
+          alert('회원가입 중 오류가 발생했습니다.');
+        }
+      });
+    });
+
+    // Utility Functions
+    const validateEmail = (email) => {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    const validatePassword = (password) => {
+      //return password.length >= 8;
+      return password.length >= 2; //임시
+    }
+
+    const showMessage =(elementId, message, type) => {
+      const $messageElement = $(`#${elementId}`);
+      $messageElement
+              .text(message)
+              .addClass('active')
+              .parent()
+              .removeClass('success error')
+              .addClass(type);
+    }
+
+    const validateSignupForm = () => {
+      if (!isEmailVerified) {
+        showMessage('emailMessage', '이메일 인증이 필요합니다.', 'error');
+        return false;
+      }
+
+      if (!isNicknameAvailable) {
+        showMessage('nicknameMessage', '닉네임 중복 확인이 필요합니다.', 'error');
+        return false;
+      }
+
+      if (!validatePassword($password.val())) {
+        showMessage('passwordMessage', '비밀번호는 8자 이상이어야 합니다.', 'error');
+        return false;
+      }
+
+      if ($password.val() !== $confirmPassword.val()) {
+        showMessage('confirmPasswordMessage', '비밀번호가 일치하지 않습니다.', 'error');
+        return false;
+      }
+
+      return true;
+    }
+
+    const startTimer =() => {
+      let timeLeft = 300; // 5분
+      const $timer = $('#timer');
+
+      stopTimer();
+
+      timerInterval = setInterval( () => {
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+
+        $timer.text(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+
+        if (timeLeft <= 0) {
+          stopTimer();
+          showMessage('verificationMessage', '인증 시간이 만료되었습니다.', 'error');
+          $verifyCodeBtn.prop('disabled', true);
+          $verifyEmailBtn.prop('disabled', false);
+        }
+        timeLeft--;
+      }, 1000);
+    }
+
+    const stopTimer = () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    }
+  });
+</script>
+</body>
+</html>

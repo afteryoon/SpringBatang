@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/login.css}">
+</head>
+<body>
+<div class="stars"></div>
+<div class="mountains"></div>
+<div class="login-container">
+  <h2>Login</h2>
+  <form>
+    <div class="input-group">
+      <label>
+        <input type="text" placeholder="E-mail">
+      </label>
+      <i class="fas fa-user"></i>
+    </div>
+    <div class="input-group">
+      <input type="password" placeholder="Password">
+      <i class="fas fa-lock"></i>
+    </div>
+    <div class="remember-forgot">
+      <label><input type="checkbox"> Remember me</label>
+      <a href="#" style="color: rgba(255, 255, 255, 0.7); text-decoration: none;">Forgot Password?</a>
+    </div>
+    <button type="submit" class="login-button">Login</button>
+  </form>
+  <div class="social-login">
+    <h3>Or Sign In With</h3>
+    <div class="social-icons">
+      <a href="#"><i class="fab fa-google"></i></a>
+      <a href="#"><i class="fab fa-github"></i></a>
+      <a href="#"><i class="fab fa-kakao"></i></a>
+    </div>
+  </div>
+  <div class="register-link">
+    Don't have an account? <a href="/auth/signup">Register</a>
+  </div>
+</div>
+<script th:herf="@{/js/login.js}"></script>
+</body>
+</html>
