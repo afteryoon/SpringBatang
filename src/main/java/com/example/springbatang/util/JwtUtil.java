@@ -6,6 +6,7 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,8 @@ public class JwtUtil {
     private long refreshTokenExpiration;
 
     private SecretKey key;
+
+    private RedisTemplate<String, String> redisTemplate;
 
     @PostConstruct
     public void init() {
@@ -74,25 +78,6 @@ public class JwtUtil {
         return extractClaim(token, Claims::getSubject);
     }
 
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token);
-            return true;
-        } catch (SecurityException | MalformedJwtException e) {
-            log.info("잘못된 JWT 서명입니다.");
-        } catch (ExpiredJwtException e) {
-            log.info("만료된 JWT 토큰입니다.");
-        } catch (UnsupportedJwtException e) {
-            log.info("지원되지 않는 JWT 토큰입니다.");
-        } catch (IllegalArgumentException e) {
-            log.info("JWT 토큰이 잘못되었습니다.");
-        }
-        return false;
-    }
-
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -104,5 +89,44 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public void invalidateToken(String token) {
+        // 토큰의 남은 유효시간 계산
+        Claims claims = extractAllClaims(token);
+        long expirationTime = claims.getExpiration().getTime();
+        long now = System.currentTimeMillis();
+        long ttl = expirationTime - now;
+
+        if (ttl > 0) {
+            // 토큰을 블랙리스트에 추가 (Redis 사용)
+            redisTemplate.opsForValue().set(
+                    "blacklist:" + token,
+                    "invalidated",
+                    ttl,
+                    TimeUnit.MILLISECONDS
+            );
+        }
+    }
+
+    // 토큰 검증 시 블랙리스트 확인 추가
+    public boolean validateToken(String token) {
+        try {
+            // 블랙리스트 확인
+            Boolean isBlacklisted = redisTemplate.hasKey("blacklist:" + token);
+            if (Boolean.TRUE.equals(isBlacklisted)) {
+                return false;
+            }
+
+            // 기존 검증 로직
+            Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e) {
+            log.error("Token validation failed: ", e);
+            return false;
+        }
     }
 }

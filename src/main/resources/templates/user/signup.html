@@ -132,14 +132,16 @@
 
       if (nickname.length >= 2) {
         $.ajax({
-          url: '/api/auth/check-nickname',
+          url: '/api/auth/nickname-verification',
           type: 'POST',
           data: { nickname: nickname },
-          success: (available) => {
-            isNicknameAvailable = available;
-            showMessage('nicknameMessage',
-                    available ? '사용 가능한 닉네임입니다.' : '이미 사용 중인 닉네임입니다.',
-                    available ? 'success' : 'error');
+          success: (isAvailable) => {
+            isNicknameAvailable = isAvailable;
+            showMessage(
+                    'nicknameMessage',
+                    isAvailable ? '사용 가능한 닉네임입니다.' : '이미 사용 중인 닉네임입니다.',
+                    isAvailable ? 'success' : 'error'
+            );
           },
           error: () => {
             showMessage('nicknameMessage', '닉네임 확인 중 오류가 발생했습니다.', 'error');

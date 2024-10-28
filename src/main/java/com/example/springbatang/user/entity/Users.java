@@ -36,7 +36,7 @@ public class Users {
     private Role role;
 
     @Column(nullable = false)
-    private int activated;
+    private boolean activated;
 
     @CreatedDate
     private LocalDateTime createdAt;
@@ -47,13 +47,11 @@ public class Users {
 
     //생성 method
     @Builder
-    public Users(String email, String password, String nickname,Role role) {
+    public Users(String email, String password, String nickname) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
-        this.activated = 1;
     }
-
     //연관 관계 method
 
     //business method
@@ -69,10 +67,12 @@ public class Users {
         this.role = newRole;
     }
 
+    public void updateActivated(boolean newActivated) {
+        this.activated = newActivated;
+    }
+
 
     //toString
-
-
     @Override
     public String toString() {
         return "User{" +

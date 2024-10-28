@@ -6,6 +6,7 @@
   <title>Login</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" th:href="@{/css/login.css}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
 <div class="stars"></div>
@@ -42,5 +43,208 @@
   </div>
 </div>
 <script th:herf="@{/js/login.js}"></script>
+<script>
+  // login.js
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // DOM 요소 선택 - 최상단에서 한 번만 선택하여 재사용
+    const elements = {
+      form: document.querySelector('form'),
+      email: document.querySelector('input[type="text"]'),
+      password: document.querySelector('input[type="password"]'),
+      loginButton: document.querySelector('.login-button'),
+      rememberMeCheckbox: document.querySelector('input[type="checkbox"]')
+    };
+
+    // API 엔드포인트 상수 정의
+    const API = {
+      LOGIN: '/api/auth/login',
+      REFRESH: '/api/auth/refresh'
+    };
+
+    // 유틸리티 함수들
+    const utils = {
+      isValidEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+
+      setLoadingState: (isLoading) => {
+        elements.loginButton.disabled = isLoading;
+        elements.loginButton.innerHTML = isLoading
+                ? '<i class="fas fa-spinner fa-spin"></i> 로그인 중...'
+                : '로그인';
+      },
+
+      showInputError: (input, message) => {
+        const inputGroup = input.closest('.input-group');
+        let errorDiv = inputGroup.querySelector('.error-message');
+
+        if (!errorDiv) {
+          errorDiv = document.createElement('div');
+          errorDiv.className = 'error-message';
+          Object.assign(errorDiv.style, {
+            color: '#ff4444',
+            fontSize: '12px',
+            marginTop: '5px',
+            marginLeft: '20px'
+          });
+          inputGroup.appendChild(errorDiv);
+        }
+
+        errorDiv.textContent = message;
+        input.style.borderColor = '#ff4444';
+      },
+
+      clearInputError: (input) => {
+        const inputGroup = input.closest('.input-group');
+        const errorDiv = inputGroup.querySelector('.error-message');
+        if (errorDiv) {
+          errorDiv.remove();
+        }
+        input.style.borderColor = '';
+      },
+
+      showError: (message) => {
+        const existingError = document.querySelector('.general-error');
+        existingError?.remove();
+
+        const errorDiv = document.createElement('div');
+        Object.assign(errorDiv, {
+          className: 'general-error',
+          textContent: message
+        });
+        Object.assign(errorDiv.style, {
+          color: '#ff4444',
+          textAlign: 'center',
+          marginTop: '10px'
+        });
+
+        elements.form.insertAdjacentElement('afterend', errorDiv);
+        setTimeout(() => errorDiv.remove(), 3000);
+      }
+    };
+
+    // 폼 유효성 검사
+    const validateForm = () => {
+      let isValid = true;
+
+      // 이메일 검증
+      if (!elements.email.value || !utils.isValidEmail(elements.email.value)) {
+        utils.showInputError(elements.email, '올바른 이메일 형식을 입력해주세요.');
+        isValid = false;
+      } else {
+        utils.clearInputError(elements.email);
+      }
+
+      // 비밀번호 검증
+      if (!elements.password.value || elements.password.value.length < 2) {
+        //임시 짧게
+        utils.showInputError(elements.password, '비밀번호는 8자 이상이어야 합니다.');
+        isValid = false;
+      } else {
+        utils.clearInputError(elements.password);
+      }
+
+      return isValid;
+    };
+
+    // 토큰 관리
+    const tokenManager = {
+      setTokens: (accessToken, refreshToken) => {
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+      },
+
+      clearTokens: () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      },
+
+      refreshToken: async () => {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (!refreshToken) return null;
+
+        try {
+          const response = await fetch(API.REFRESH, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+          });
+
+          if (response.ok) {
+            const { accessToken } = await response.json();
+            localStorage.setItem('accessToken', accessToken);
+            return accessToken;
+          } else {
+            tokenManager.clearTokens();
+            window.location.href = '/api/auth/login';
+            return null;
+          }
+        } catch (error) {
+          console.error('Token refresh error:', error);
+          return null;
+        }
+      }
+    };
+
+    // Remember Me 기능
+    const handleRememberMe = () => {
+      if (elements.rememberMeCheckbox.checked) {
+        localStorage.setItem('rememberedEmail', elements.email.value);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+    };
+
+    // 저장된 이메일 불러오기
+    const loadRememberedEmail = () => {
+      const rememberedEmail = localStorage.getItem('rememberedEmail');
+      if (rememberedEmail) {
+        elements.email.value = rememberedEmail;
+        elements.rememberMeCheckbox.checked = true;
+      }
+    };
+
+    // 로그인 처리
+    const handleLogin = async (e) => {
+      e.preventDefault();
+
+      if (!validateForm()) return;
+
+      utils.setLoadingState(true);
+
+      try {
+        const response = await fetch(API.LOGIN, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: elements.email.value,
+            password: elements.password.value
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          tokenManager.setTokens(data.accessToken, data.refreshToken);
+          handleRememberMe();
+          window.location.href = '/';
+        } else {
+          utils.showError('유효하지 않은 회원 정보입니다.');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        utils.showError('서버와의 통신 중 오류가 발생했습니다.');
+      } finally {
+        utils.setLoadingState(false);
+      }
+    };
+
+    // 이벤트 리스너 등록
+    elements.form.addEventListener('submit', handleLogin);
+
+    // 초기화
+    loadRememberedEmail();
+  });
+
+</script>
 </body>
 </html>

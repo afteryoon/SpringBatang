@@ -17,4 +17,15 @@ public class UserResponse {
     private String nickname;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    @Override
+    public String toString() {
+        return "UserResponse{" +
+                "id=" + id +
+                ", email='" + email + '\'' +
+                ", nickname='" + nickname + '\'' +
+                ", createdAt=" + createdAt +'\'' +
+                ", updatedAt=" + updatedAt +'\'' +
+                '}';
+    }
 }
